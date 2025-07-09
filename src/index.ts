@@ -34,6 +34,10 @@ type StopPointResponse =  {
     }
 }
 
+type GeoCoords = {
+    latitude: number
+    longitude: number
+}
 
 async function queryArrivals( stopCode: string) {
     let query = `https://api.tfl.gov.uk/StopPoint/${stopCode}/Arrivals?app_key=83944ee14a534d978a5012be9e3e4f8b`
@@ -70,6 +74,30 @@ function getNextNBusDetails(response: StopPointResponse[], n: number): string{
     return message
 }
 
+async function getPostcodeLocation(postCode: string) : Promise<GeoCoords | undefined>{
+    let query = `https://api.postcodes.io/postcodes/${postCode}`
+    try {
+        const response = await fetch(query);
+        const responseJson = await response.json();
+        return {latitude: responseJson.result.latitude, longitude: responseJson.result.longitude}
+    } catch (error: any) {
+        console.error(error)
+    } finally {
+        console.log("Request complete")
+    }
+
+    return undefined
+
+}
+
+async function postCodeToStopCode(postCode: string) {
+    let geocoords = await getPostcodeLocation(postCode);
+    console.log(geocoords)
+
+
+    // let stopCode = getNearestStopcode(latitude, longitude);
+}
+
 async function getArrivals() {
     const rl = readline.createInterface({
         input: process.stdin,
@@ -83,6 +111,6 @@ async function getArrivals() {
     });
 }
 
-getArrivals()
+postCodeToStopCode("IP332NA")
 
 module.exports = {getArrivals};
