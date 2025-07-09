@@ -95,8 +95,8 @@ async function getPostcodeLocation(postCode: string) : Promise<GeoCoords | undef
 
 }
 
-async function getNearestNStopCodes(geocoords: GeoCoords, count: number) {
-    let query = `https://api.tfl.gov.uk/StopPoint/?lat=${geocoords.latitude}&lon=${geocoords.longitude}&stopTypes=NaptanPublicBusCoachTram`
+async function getNearestNStopPoints(geocoords: GeoCoords, count: number) {
+    let query = `https://api.tfl.gov.uk/StopPoint/?app_key=83944ee14a534d978a5012be9e3e4f8b&lat=${geocoords.latitude}&lon=${geocoords.longitude}&stopTypes=NaptanPublicBusCoachTram`
     try {
         const response = await fetch(query);
         const responseJson = await response.json();
@@ -105,13 +105,10 @@ async function getNearestNStopCodes(geocoords: GeoCoords, count: number) {
             function(a:StopPoint,b:StopPoint) {return a.distance - b.distance}
         );
 
-        let nStops = sortedStops.slice(0,count).map((stop: StopPoint)=> stop.id)
-        return nStops
+        return sortedStops.slice(0,count)
 
     } catch (error: any) {
         console.error(error)
-    } finally {
-        console.log("Request complete")
     }
 }
 
@@ -121,10 +118,11 @@ async function postCodeToStopCode(postCode: string) {
 
     if (geocoords == undefined) throw new Error("Undefined postcode coords");
 
-    let stopCodes = await getNearestNStopCodes(geocoords,2);
+    let stopPoints = await getNearestNStopPoints(geocoords,2);
 
-    for (let stopCode of stopCodes) {
-        await queryArrivals(stopCode);
+    for (let stopPoint of stopPoints) {
+        console.log(`Arrivals to ${stopPoint.commonName}`)
+        await queryArrivals(stopPoint.id);
     }
 
 }
