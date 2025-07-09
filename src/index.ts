@@ -1,4 +1,4 @@
-import * as readline from "node:readline";
+const readline = require("node:readline");
 
 type StopPointResponse =  {
     "$type": string,
@@ -56,8 +56,13 @@ function getTimeToArrival(bus: StopPointResponse) {
 
 function getNextNBusDetails(response: StopPointResponse[], n: number): string{
     let message = ""
-    for (let i = 1; i < n; i++) {
-        let bus = response[i]
+
+    let sortedBuses = response.sort(function (a: StopPointResponse, b: StopPointResponse): number {
+        return Math.sign(a.timeToStation - b.timeToStation)
+    })
+
+    for (let i = 0; i < n; i++) {
+        let bus = sortedBuses[i]
         message += "Line : " + bus.lineName + "\n"
             + "Destination : " + bus.destinationName + "\n"
             + "Minutes until arrival : " + getTimeToArrival(bus) + "\n\n"
@@ -66,10 +71,18 @@ function getNextNBusDetails(response: StopPointResponse[], n: number): string{
 }
 
 async function getArrivals() {
-    let stopCode = prompt("Enter stop code: ");
-    if (stopCode != null) {
-        await queryArrivals(stopCode);
-    }
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+
+    rl.question(`Enter Stop Code : `, (stopCode: string) => {
+        if (stopCode === "") stopCode = "490008660N"
+        queryArrivals(stopCode);
+        rl.close();
+    });
 }
+
+getArrivals()
 
 module.exports = {getArrivals};
