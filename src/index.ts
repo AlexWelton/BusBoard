@@ -1,6 +1,7 @@
+
 const readline = require("node:readline");
 
-type StopPointResponse =  {
+type BusDetails =  {
     "$type": string,
     "id": string,
     "operationType": number,
@@ -34,6 +35,11 @@ type StopPointResponse =  {
     }
 }
 
+type StopPoint = {
+    distance: number,
+    id: string
+}
+
 type GeoCoords = {
     latitude: number
     longitude: number
@@ -48,25 +54,26 @@ async function queryArrivals( stopCode: string) {
         console.log(getNextNBusDetails(responseJson, 5));
     } catch (error: any) {
         console.error(error)
-    } finally {
-        console.log("Request complete")
     }
 }
 
-function getTimeToArrival(bus: StopPointResponse) {
+function getTimeToArrival(bus: BusDetails) {
     return Math.floor(bus.timeToStation / 60);
 }
 
 
-function getNextNBusDetails(response: StopPointResponse[], n: number): string{
+function getNextNBusDetails(response: BusDetails[], n: number): string{
     let message = ""
 
-    let sortedBuses = response.sort(function (a: StopPointResponse, b: StopPointResponse): number {
-        return Math.sign(a.timeToStation - b.timeToStation)
-    })
+    let sortedBuses = response.sort(
+        function (a: BusDetails, b: BusDetails): number {
+            return Math.sign(a.timeToStation - b.timeToStation)
+        }
+    )
 
     for (let i = 0; i < n; i++) {
         let bus = sortedBuses[i]
+
         message += "Line : " + bus.lineName + "\n"
             + "Destination : " + bus.destinationName + "\n"
             + "Minutes until arrival : " + getTimeToArrival(bus) + "\n\n"
@@ -82,20 +89,44 @@ async function getPostcodeLocation(postCode: string) : Promise<GeoCoords | undef
         return {latitude: responseJson.result.latitude, longitude: responseJson.result.longitude}
     } catch (error: any) {
         console.error(error)
-    } finally {
-        console.log("Request complete")
     }
 
     return undefined
 
 }
 
+async function getNearestNStopCodes(geocoords: GeoCoords, count: number) {
+    let query = `https://api.tfl.gov.uk/StopPoint/?lat=${geocoords.latitude}&lon=${geocoords.longitude}&stopTypes=NaptanPublicBusCoachTram`
+    try {
+        const response = await fetch(query);
+        const responseJson = await response.json();
+
+        let sortedStops = responseJson.stopPoints.sort(
+            function(a:StopPoint,b:StopPoint) {return a.distance - b.distance}
+        );
+
+        let nStops = sortedStops.slice(0,count).map((stop: StopPoint)=> stop.id)
+        return nStops
+
+    } catch (error: any) {
+        console.error(error)
+    } finally {
+        console.log("Request complete")
+    }
+}
+
 async function postCodeToStopCode(postCode: string) {
+
     let geocoords = await getPostcodeLocation(postCode);
-    console.log(geocoords)
 
+    if (geocoords == undefined) throw new Error("Undefined postcode coords");
 
-    // let stopCode = getNearestStopcode(latitude, longitude);
+    let stopCodes = await getNearestNStopCodes(geocoords,2);
+
+    for (let stopCode of stopCodes) {
+        await queryArrivals(stopCode);
+    }
+
 }
 
 async function getArrivals() {
@@ -106,11 +137,12 @@ async function getArrivals() {
 
     rl.question(`Enter Stop Code : `, (stopCode: string) => {
         if (stopCode === "") stopCode = "490008660N"
+
         queryArrivals(stopCode);
         rl.close();
     });
 }
 
-postCodeToStopCode("IP332NA")
+postCodeToStopCode("NW51TL")
 
 module.exports = {getArrivals};
